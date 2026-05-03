@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Data
+data/raw/
+data/processed/
+*.fasta
+*.fa
+*.gz
+*.csv
+
+# Models
+models/
+*.h5
+*.keras
+*.pt
+*.pth
+
+# Results
+results/
+
+# Mac
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/	
