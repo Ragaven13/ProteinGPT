@@ -3,7 +3,7 @@ import numpy as np
 from difflib import SequenceMatcher
 
 
-GENERATED_CSV = "results/generated_sequences.csv"
+GENERATED_CSV = "results/generated_sequences_500.csv"
 REAL_CSV = "data/processed/swissprot_labeled.csv"
 OUTPUT_CSV = "results/evaluation_results.csv"
 
