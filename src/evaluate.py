@@ -1,40 +1,18 @@
+import pandas as pd
 import numpy as np
 from difflib import SequenceMatcher
 
 
-def sequence_similarity(seq1, seq2):
-    """
-    Calculates similarity between two protein sequences.
+GENERATED_CSV = "results/generated_sequences.csv"
+REAL_CSV = "data/processed/swissprot_labeled.csv"
+OUTPUT_CSV = "results/evaluation_results.csv"
 
-    Output range:
-    0.0 = completely different
-    1.0 = identical
-    """
+
+def sequence_similarity(seq1, seq2):
     return SequenceMatcher(None, seq1, seq2).ratio()
 
 
-def amino_acid_distribution(sequence):
-    """
-    Calculates amino acid frequency distribution.
-    """
-    amino_acids = "ACDEFGHIKLMNPQRSTVWY"
-    total = len(sequence)
-
-    if total == 0:
-        return {aa: 0 for aa in amino_acids}
-
-    return {
-        aa: sequence.count(aa) / total
-        for aa in amino_acids
-    }
-
-
 def diversity_score(sequences):
-    """
-    Average pairwise difference between generated sequences.
-
-    Higher score = more diverse generation.
-    """
     scores = []
 
     for i in range(len(sequences)):
@@ -45,39 +23,73 @@ def diversity_score(sequences):
     return np.mean(scores) if scores else 0
 
 
-def novelty_score(generated_sequences, real_sequences):
-    """
-    Measures how different generated sequences are from real training sequences.
+def novelty_score(generated_sequences, real_sequences, sample_size=1000):
+    real_sample = real_sequences[:sample_size]
 
-    Higher score = more novel.
-    """
-    novelty_scores = []
+    scores = []
 
     for gen_seq in generated_sequences:
         max_similarity = max(
             sequence_similarity(gen_seq, real_seq)
-            for real_seq in real_sequences[:1000]
+            for real_seq in real_sample
         )
 
-        novelty_scores.append(1 - max_similarity)
+        scores.append(1 - max_similarity)
 
-    return np.mean(novelty_scores)
+    return np.mean(scores)
+
+
+def average_length(sequences):
+    return np.mean([len(seq) for seq in sequences])
+
+
+def main():
+    print("Loading generated sequences...")
+    generated_df = pd.read_csv(GENERATED_CSV)
+
+    print("Loading real Swiss-Prot labeled sequences...")
+    real_df = pd.read_csv(REAL_CSV)
+
+    results = []
+
+    for label in generated_df["function_label"].unique():
+        print(f"\nEvaluating label: {label}")
+
+        generated_sequences = generated_df[
+            generated_df["function_label"] == label
+        ]["generated_sequence"].dropna().tolist()
+
+        real_sequences = real_df[
+            real_df["function_label"] == label
+        ]["sequence"].dropna().tolist()
+
+        if len(generated_sequences) == 0 or len(real_sequences) == 0:
+            continue
+
+        novelty = novelty_score(generated_sequences, real_sequences)
+        diversity = diversity_score(generated_sequences)
+        gen_avg_len = average_length(generated_sequences)
+        real_avg_len = average_length(real_sequences[:1000])
+
+        results.append({
+            "function_label": label,
+            "num_generated": len(generated_sequences),
+            "num_real_compared": min(1000, len(real_sequences)),
+            "novelty_score": novelty,
+            "diversity_score": diversity,
+            "generated_avg_length": gen_avg_len,
+            "real_avg_length_sample": real_avg_len,
+        })
+
+    results_df = pd.DataFrame(results)
+
+    print("\nEvaluation Results:")
+    print(results_df)
+
+    results_df.to_csv(OUTPUT_CSV, index=False)
+
+    print(f"\nSaved evaluation results to: {OUTPUT_CSV}")
 
 
 if __name__ == "__main__":
-    generated = [
-        "MKTLLAVVG",
-        "MKAILVVGG",
-        "GHTLLAVVV",
-    ]
-
-    real = [
-        "MKTLLAVVA",
-        "MKLLLLVGG",
-        "GGGTTTAAA",
-    ]
-
-    print("Similarity example:", sequence_similarity(generated[0], real[0]))
-    print("Amino acid distribution:", amino_acid_distribution(generated[0]))
-    print("Diversity score:", diversity_score(generated))
-    print("Novelty score:", novelty_score(generated, real))
+    main()
